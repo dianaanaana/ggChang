@@ -2,20 +2,44 @@
 import { Container, TextField, Button, Typography, Box, Paper, IconButton } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getAuthHeaders, isAuthenticated } from '../utils/auth';
+import { getAuthHeaders, isAuthenticated, getIdToken } from '../utils/auth';
 
 export default function AddRecord() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
-    category: '',
-    date: new Date().toISOString().split('T')[0] // 預設今天日期
+    category: ''
   });
   const [loading, setLoading] = useState(false);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  const handleImageChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
 
   const handleChange = (field) => (event) => {
     setFormData({
@@ -38,13 +62,47 @@ export default function AddRecord() {
 
     setLoading(true);
     try {
+      let s3Key = null;
+
+      // 如果有選擇圖片，先處理上傳
+      if (imageFile) {
+        // 1. 向後端請求預簽名 URL
+        console.log('Requesting upload URL...');
+        
+        // 使用標準 Auth Header (Cognito Authorizer 驗證後會傳遞 Claims 給 Lambda)
+        const uploadRes = await axios.post(
+          'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/upload-url',
+          {
+            fileName: imageFile.name,
+            contentType: imageFile.type
+          },
+          { headers: getAuthHeaders() }
+        );
+
+        const { uploadUrl, s3Key: key } = uploadRes.data;
+        s3Key = key;
+
+        // 2. 直接上傳圖片到 S3 (不需要 Auth Header，因為 Url 已經簽名了)
+        // 注意：Content-Type 必須與步驟 1 請求的一致
+        console.log('Uploading to S3...');
+        await axios.put(uploadUrl, imageFile, {
+          headers: {
+            'Content-Type': imageFile.type
+          }
+        });
+      }
+
+      // 3. 儲存紀錄到 DynamoDB
+      console.log('Saving record...');
+      // 這裡維持原樣，因為如果是 NONE Authorizer 則不影響，如果是 Cognito 則需一致
+      // 假設 /expenses 還是用原本的方式 (可能依賴 Lambda 內部邏輯或 API Gateway 設定)
       const response = await axios.post(
         'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses',
         {
           amount: parseFloat(formData.amount),
           category: formData.category,
-          date: formData.date,
-          description: formData.description
+          description: formData.description,
+          s3Key: s3Key // 傳送 s3Key 給後端
         },
         {
           headers: getAuthHeaders()
@@ -56,7 +114,12 @@ export default function AddRecord() {
         navigate(-1);
       }
     } catch (error) {
-      console.error('新增失敗:', error);
+      console.error('新增失敗詳細錯誤:', error);
+      if (error.response) {
+          console.error('Response Status:', error.response.status);
+          console.error('Response Data:', error.response.data);
+      }
+      
       if (error.response?.status === 401) {
         alert('登入已過期，請重新登入');
         navigate('/login');
@@ -113,17 +176,38 @@ export default function AddRecord() {
           onChange={handleChange('category')}
         />
 
-        <TextField
+        <Button
+          component="label"
+          variant="outlined"
+          startIcon={<CloudUploadIcon />}
+          sx={{ mt: 2, mb: 1 }}
           fullWidth
-          label="日期"
-          type="date"
-          margin="normal"
-          value={formData.date}
-          onChange={handleChange('date')}
-          InputLabelProps={{
-            shrink: true,
-          }}
-        />
+        >
+          上傳圖片
+          <input
+            type="file"
+            hidden
+            accept="image/*"
+            onChange={handleImageChange}
+          />
+        </Button>
+
+        {imagePreview && (
+          <Box mt={2} mb={2} position="relative" sx={{ width: '100%', height: '200px', overflow: 'hidden', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+            <img 
+                src={imagePreview} 
+                alt="Preview" 
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+            />
+            <IconButton 
+                onClick={handleRemoveImage}
+                sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' } }}
+                size="small"
+            >
+                <DeleteIcon />
+            </IconButton>
+          </Box>
+        )}
 
         <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
             <Button
