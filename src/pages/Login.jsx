@@ -5,12 +5,21 @@ import AccountBalanceWalletTnIcon from '@mui/icons-material/AccountBalanceWallet
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 
+// 根據當前網址自動選擇 redirect_uri
+const getRedirectUri = () => {
+  const currentOrigin = window.location.origin
+  if (currentOrigin.includes('localhost')) {
+    return encodeURIComponent('http://localhost:5173/')
+  }
+  return encodeURIComponent('https://d14a9z9u68wcij.cloudfront.net/')
+}
+
 const COGNITO_LOGIN_URL =
   'https://ap-southeast-1corecotoj.auth.ap-southeast-1.amazoncognito.com/login' +
   '?client_id=7ru74bpjktaoluf5e5ub9hq1sj' +
   '&response_type=code' +
   '&scope=email+openid+phone'+
-  '&redirect_uri=https%3A%2F%2Fd14a9z9u68wcij.cloudfront.net%2F'
+  '&redirect_uri=' + getRedirectUri()
 
 export default function Login() {
   const navigate = useNavigate()
