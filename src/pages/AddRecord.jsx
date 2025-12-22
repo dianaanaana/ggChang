@@ -49,9 +49,15 @@ export default function AddRecord() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.amount || !formData.category) {
-      alert('請填寫金額和分類');
+    // 檢查所有必要欄位：金額、分類、標題、圖片
+    if (!formData.amount || !formData.category || !formData.description) {
+      alert('請完整填寫金額、分類與標題');
       return;
+    }
+
+    if (!imageFile) {
+        alert('請上傳一張圖片');
+        return;
     }
 
     if (!isAuthenticated()) {

@@ -136,15 +136,32 @@ export default function Dashboard() {
             color: 'white' 
           }}
         >
-          <Typography variant="subtitle1" sx={{ opacity: 0.8 }}>目前餘額</Typography>
+          <Typography variant="subtitle1" sx={{ opacity: 0.8 }}>總支出</Typography>
           <Typography variant="h2" component="div" fontWeight="bold">
             ${totalAmount}
           </Typography>
         </Card>
 
+        {/* 新增按鈕移到這裡 */}
+        <Button
+          fullWidth
+          variant="contained"
+          size="large"
+          startIcon={<AddIcon />}
+          sx={{ 
+            mb: 4, 
+            py: 1.5, 
+            borderRadius: 50, // 膠囊狀按鈕
+            boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' 
+          }}
+          onClick={() => navigate('/add-record')}
+        >
+          新增一筆紀錄
+        </Button>
+
         {/* 操作區 */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-           <Typography variant="h6" fontWeight="bold">近期紀錄</Typography>
+           <Typography variant="h6" fontWeight="bold">消費紀錄</Typography>
         </Box>
 
         {/* 圖片牆列表 (Grid) */}
@@ -195,23 +212,6 @@ export default function Dashboard() {
                 </ImageListItem>
             ))}
         </ImageList>
-
-        {/* 懸浮按鈕 (FAB) 風格的 Add 按鈕，或是寬版按鈕 */}
-        <Button
-          fullWidth
-          variant="contained"
-          size="large"
-          startIcon={<AddIcon />}
-          sx={{ 
-            mt: 4, 
-            py: 1.5, 
-            borderRadius: 50, // 膠囊狀按鈕
-            boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' 
-          }}
-          onClick={() => navigate('/add-record')}
-        >
-          新增一筆紀錄
-        </Button>
       </Container>
 
       {/* 詳情對話框 */}
@@ -223,15 +223,23 @@ export default function Dashboard() {
       >
         {selectedRecord && (
             <>
-                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    詳情
-                    <Typography variant="caption" color="text.secondary">
-                        {new Date(selectedRecord.createdAt).toLocaleString()}
-                    </Typography>
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pb: 1 }}>
+                    <Box sx={{ flex: 1, pr: 2 }}>
+                        <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+                            {selectedRecord.description || "未命名紀錄"}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                            {new Date(selectedRecord.createdAt).toLocaleDateString('zh-TW', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit'
+                            })}
+                        </Typography>
+                    </Box>
                 </DialogTitle>
                 <DialogContent>
                     {selectedRecord.imageUrl && (
-                        <Box sx={{ width: '100%', mb: 2, borderRadius: 2, overflow: 'hidden' }}>
+                        <Box sx={{ width: '100%', mb: 2, borderRadius: 2, overflow: 'hidden', border: '1px solid #eee' }}>
                             <img 
                                 src={selectedRecord.imageUrl} 
                                 alt="Detail" 
@@ -243,21 +251,19 @@ export default function Dashboard() {
                         ${selectedRecord.amount}
                     </Typography>
                     <Box display="flex" gap={1} mb={1}>
-                        <Typography variant="body1" fontWeight="bold" sx={{ px: 1, py: 0.5, bgcolor: '#f3f4f6', borderRadius: 1 }}>
+                        <Typography variant="body2" fontWeight="bold" sx={{ px: 1.5, py: 0.5, bgcolor: '#f3f4f6', borderRadius: 1, color: 'text.secondary' }}>
                             {selectedRecord.category}
                         </Typography>
                     </Box>
-                    <Typography variant="body1">
-                        {selectedRecord.description || "無描述"}
-                    </Typography>
                 </DialogContent>
                 <DialogActions sx={{ px: 3, pb: 3 }}>
-                    <Button onClick={() => setSelectedRecord(null)}>關閉</Button>
+                    <Button onClick={() => setSelectedRecord(null)} color="inherit">返回</Button>
                     <Button 
                         variant="contained" 
                         color="error" 
                         startIcon={<DeleteIcon />}
                         onClick={() => handleDelete(selectedRecord.recordId)}
+                        sx={{ borderRadius: 2 }}
                     >
                         刪除
                     </Button>
