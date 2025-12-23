@@ -1,5 +1,4 @@
-// src/pages/AddRecord.jsx
-import { Container, TextField, Button, Typography, Box, Paper, IconButton } from '@mui/material'
+import { Container, TextField, Button, Typography, Box, Paper, IconButton, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -7,14 +6,15 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getAuthHeaders, isAuthenticated, getIdToken } from '../utils/auth';
+import { getAuthHeaders, isAuthenticated } from '../utils/auth';
 import { useSearchParams } from "react-router-dom";
-
 
 export default function AddRecord() {
   const [searchParams] = useSearchParams();
   const date = searchParams.get("date"); // 2025-12-22
   const navigate = useNavigate();
+
+  const [type, setType] = useState('expense'); // 收入 / 支出
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -26,11 +26,13 @@ export default function AddRecord() {
 
   useEffect(() => {
     return () => {
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-      }
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
     };
   }, [imagePreview]);
+
+  const handleTypeChange = (event, newType) => {
+    if (newType !== null) setType(newType);
+  };
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
@@ -46,24 +48,18 @@ export default function AddRecord() {
   };
 
   const handleChange = (field) => (event) => {
-    setFormData({
-      ...formData,
-      [field]: event.target.value
-    });
+    setFormData({ ...formData, [field]: event.target.value });
   };
 
   const handleSubmit = async () => {
-    // 檢查所有必要欄位：金額、分類、標題、圖片
     if (!formData.amount || !formData.category || !formData.description) {
       alert('請完整填寫金額、分類與標題');
       return;
     }
-
     if (!imageFile) {
-        alert('請上傳一張圖片');
-        return;
+      alert('請上傳一張圖片');
+      return;
     }
-
     if (!isAuthenticated()) {
       alert('請先登入');
       navigate('/login');
@@ -73,50 +69,27 @@ export default function AddRecord() {
     setLoading(true);
     try {
       let s3Key = null;
-
-      // 如果有選擇圖片，先處理上傳
       if (imageFile) {
-        // 1. 向後端請求預簽名 URL
-        console.log('Requesting upload URL...');
-        
-        // 使用標準 Auth Header (Cognito Authorizer 驗證後會傳遞 Claims 給 Lambda)
         const uploadRes = await axios.post(
           'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/upload-url',
-          {
-            fileName: imageFile.name,
-            contentType: imageFile.type
-          },
+          { fileName: imageFile.name, contentType: imageFile.type },
           { headers: getAuthHeaders() }
         );
-
         const { uploadUrl, s3Key: key } = uploadRes.data;
         s3Key = key;
-
-        // 2. 直接上傳圖片到 S3 (不需要 Auth Header，因為 Url 已經簽名了)
-        // 注意：Content-Type 必須與步驟 1 請求的一致
-        console.log('Uploading to S3...');
-        await axios.put(uploadUrl, imageFile, {
-          headers: {
-            'Content-Type': imageFile.type
-          }
-        });
+        await axios.put(uploadUrl, imageFile, { headers: { 'Content-Type': imageFile.type } });
       }
 
-      // 3. 儲存紀錄到 DynamoDB
-      console.log('Saving record...');
-      // 這裡維持原樣，因為如果是 NONE Authorizer 則不影響，如果是 Cognito 則需一致
-      // 假設 /expenses 還是用原本的方式 (可能依賴 Lambda 內部邏輯或 API Gateway 設定)
       const response = await axios.post(
         'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses',
         {
           amount: parseFloat(formData.amount),
           category: formData.category,
           description: formData.description,
-          s3Key: s3Key // 傳送 s3Key 給後端
+          s3Key: s3Key,
+          type: type // 新增 type 字段
         },
-        {
-          headers: getAuthHeaders()
-        }
+        { headers: getAuthHeaders() }
       );
 
       if (response.status === 201) {
@@ -125,11 +98,6 @@ export default function AddRecord() {
       }
     } catch (error) {
       console.error('新增失敗詳細錯誤:', error);
-      if (error.response) {
-          console.error('Response Status:', error.response.status);
-          console.error('Response Data:', error.response.data);
-      }
-      
       if (error.response?.status === 401) {
         alert('登入已過期，請重新登入');
         navigate('/login');
@@ -144,15 +112,34 @@ export default function AddRecord() {
   return (
     <Container maxWidth="sm">
       <Box mt={4} mb={2} display="flex" alignItems="center">
-        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1 }}>
-            <ArrowBackIcon />
+        <IconButton onClick={() => navigate(-1)} sx={{ mr: 1, color: 'black' }}>
+          <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h5" fontWeight="bold">
-          新增紀錄
-        </Typography>
+        <Typography variant="h5" fontWeight="bold" sx={{ color: 'black' }}>新增紀錄</Typography>
       </Box>
 
       <Paper sx={{ p: 3 }}>
+        {/* 收入/支出 Toggle */}
+        <Box mb={3} display="flex" justifyContent="center">
+          <ToggleButtonGroup
+            value={type}
+            exclusive
+            onChange={handleTypeChange}
+            aria-label="收支類型"
+            sx={{
+              '.MuiToggleButton-root': { color: 'black' },
+              '.Mui-selected': {
+                bgcolor: 'black',
+                color: 'white',
+                '&:hover': { bgcolor: '#333' }
+              }
+            }}
+          >
+            <ToggleButton value="income" aria-label="收入">收入</ToggleButton>
+            <ToggleButton value="expense" aria-label="支出">支出</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+
         <TextField
           fullWidth
           label="標題"
@@ -161,22 +148,29 @@ export default function AddRecord() {
           variant="outlined"
           value={formData.description}
           onChange={handleChange('description')}
+          sx={{
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '& .MuiInputLabel-root': { color: 'black' }
+          }}
         />
 
         <TextField
-            fullWidth
-            label="金額"
-            type="number"
-            margin="normal"
-            placeholder="0"
-            value={formData.amount}
-            onChange={handleChange('amount')}
-            InputProps={{
-                startAdornment: <Typography color="text.secondary" sx={{ mr: 1 }}>$</Typography>
-            }}
+          fullWidth
+          label="金額"
+          type="number"
+          margin="normal"
+          placeholder="0"
+          value={formData.amount}
+          onChange={handleChange('amount')}
+          InputProps={{ startAdornment: <Typography color="text.primary" sx={{ mr: 1 }}>$</Typography> }}
+          sx={{
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '& .MuiInputLabel-root': { color: 'black' }
+          }}
         />
 
-        {/* 未來這裡建議改成 Select (下拉選單) */}
         <TextField
           fullWidth
           label="分類"
@@ -184,71 +178,70 @@ export default function AddRecord() {
           margin="normal"
           value={formData.category}
           onChange={handleChange('category')}
+          sx={{
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '& .MuiInputLabel-root': { color: 'black' }
+          }}
         />
-        
+
         <TextField
           label="日期"
           type="date"
           value={date || ""}
           InputLabelProps={{ shrink: true }}
           fullWidth
+          sx={{
+            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+            '& .MuiInputLabel-root': { color: 'black' }
+          }}
         />
 
         <Button
           component="label"
           variant="outlined"
           startIcon={<CloudUploadIcon />}
-          sx={{ mt: 2, mb: 1 }}
+          sx={{ mt: 2, mb: 1, color: 'black', borderColor: 'black', '&:hover': { borderColor: 'black', bgcolor: '#f0f0f0' } }}
           fullWidth
         >
           上傳圖片
-          <input
-            type="file"
-            hidden
-            accept="image/*"
-            onChange={handleImageChange}
-          />
+          <input type="file" hidden accept="image/*" onChange={handleImageChange} />
         </Button>
 
         {imagePreview && (
           <Box mt={2} mb={2} position="relative" sx={{ width: '100%', height: '200px', overflow: 'hidden', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-            <img 
-                src={imagePreview} 
-                alt="Preview" 
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-            />
-            <IconButton 
-                onClick={handleRemoveImage}
-                sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' } }}
-                size="small"
-            >
-                <DeleteIcon />
+            <img src={imagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            <IconButton onClick={handleRemoveImage} sx={{ position: 'absolute', top: 4, right: 4, bgcolor: 'rgba(255,255,255,0.8)', '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' } }} size="small">
+              <DeleteIcon sx={{ color: 'black' }} />
             </IconButton>
           </Box>
         )}
 
         <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-            <Button
-                fullWidth
-                variant="outlined"
-                size="large"
-                onClick={() => navigate(-1)}
-                disabled={loading}
-            >
-                取消
-            </Button>
-            <Button
-                fullWidth
-                variant="contained"
-                size="large"
-                startIcon={<SaveIcon />}
-                onClick={handleSubmit}
-                disabled={loading}
-            >
-                {loading ? '儲存中...' : '儲存'}
-            </Button>
+          <Button fullWidth variant="outlined" size="large" onClick={() => navigate(-1)} disabled={loading} sx={{ color: 'black', borderColor: 'black', '&:hover': { bgcolor: '#f0f0f0', borderColor: 'black' } }}>
+            取消
+          </Button>
+          <Button
+            fullWidth
+            size="large"
+            startIcon={<SaveIcon />}
+            onClick={handleSubmit}
+            disabled={loading}
+            sx={{
+              backgroundColor: 'black',   // 主色
+              color: 'white',             // 文字
+              '&:hover': { backgroundColor: '#333' }, // hover 色
+              '&.Mui-disabled': {          // disabled 狀態也保持黑色/灰色
+                backgroundColor: '#555',
+                color: '#ccc',
+              },
+            }}
+          >
+            {loading ? '儲存中...' : '儲存'}
+          </Button>
         </Box>
       </Paper>
     </Container>
-  )
+  );
 }

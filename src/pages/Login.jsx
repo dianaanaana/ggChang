@@ -5,7 +5,7 @@ import AccountBalanceWalletTnIcon from '@mui/icons-material/AccountBalanceWallet
 import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 
-// 根據當前網址自動選擇 redirect_uri
+// 根據當前網址自動選擇 redirect_uri 目前有登入問題 我先將redirect 寫死
 const getRedirectUri = () => {
   const currentOrigin = window.location.origin
   if (currentOrigin.includes('localhost')) {
@@ -19,7 +19,7 @@ const COGNITO_LOGIN_URL =
   '?client_id=7ru74bpjktaoluf5e5ub9hq1sj' +
   '&response_type=code' +
   '&scope=email+openid+phone'+
-  '&redirect_uri=' + getRedirectUri()
+  '&redirect_uri=http://localhost:5173/'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -29,6 +29,7 @@ export default function Login() {
   }
 
   return (
+    
     <Container maxWidth="xs">
       <Box mt={10} textAlign="center">
         <Typography variant="h4" gutterBottom>
