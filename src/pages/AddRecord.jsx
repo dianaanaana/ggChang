@@ -1,4 +1,5 @@
-import { Container, TextField, Button, Typography, Box, Paper, IconButton, ToggleButton, ToggleButtonGroup } from '@mui/material';
+import { Container, TextField, Button, Typography, Box, Paper, IconButton, ToggleButton, ToggleButtonGroup  } from '@mui/material';
+import { Select, MenuItem, InputLabel, FormControl } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -171,24 +172,32 @@ export default function AddRecord() {
           }}
         />
 
-        <TextField
-          fullWidth
-          label="分類"
-          placeholder="食、衣、住、行..."
-          margin="normal"
-          value={formData.category}
-          onChange={handleChange('category')}
-          sx={{
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
-            '& .MuiInputLabel-root': { color: 'black' }
-          }}
-        />
+        <FormControl fullWidth margin ="normal" >
+          <InputLabel id="category-label" sx={{ color: 'black' }}>分類</InputLabel>
+          <Select
+            labelId="category-label"
+            value={formData.category}
+            label="分類"
+            onChange={handleChange('category')}
+            sx={{
+              color: 'black',
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+              '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
+              '& .MuiSvgIcon-root': { color: 'black' } // 下拉箭頭顏色
+            }}
+          >
+            <MenuItem value="食">食</MenuItem>
+            <MenuItem value="衣">衣</MenuItem>
+            <MenuItem value="住">住</MenuItem>
+            <MenuItem value="行">行</MenuItem>
+          </Select>
+        </FormControl>
 
         <TextField
           label="日期"
           type="date"
           value={date || ""}
+          margin="normal"
           InputLabelProps={{ shrink: true }}
           fullWidth
           sx={{
