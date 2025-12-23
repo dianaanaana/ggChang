@@ -53,6 +53,26 @@ export const getIdToken = () => {
   return localStorage.getItem('idToken');
 };
 
+// Decode the id token to extract the Cognito user sub (user id)
+export const getUserId = () => {
+  const idToken = getIdToken();
+  if (!idToken) return null;
+
+  try {
+    const [, payload] = idToken.split('.');
+    if (!payload) return null;
+
+    // atob expects standard base64, not base64url
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = JSON.parse(atob(padded));
+    return decoded?.sub || null;
+  } catch (err) {
+    console.error('Failed to decode id token for user id:', err);
+    return null;
+  }
+};
+
 export const isAuthenticated = () => {
   return localStorage.getItem('isLoggedIn') === 'true' && !!getIdToken();
 };
@@ -64,9 +84,8 @@ export const logout = () => {
   localStorage.removeItem('isLoggedIn');
 };
 
-export const getAuthHeaders = () => {
-  const idToken = getIdToken();
-  return idToken ? {
-    'Authorization': `Bearer ${idToken}`
-  } : {};
+// 回傳 Authorization header；預設用 id token，必要時可切換 access token
+export const getAuthHeaders = (useAccessToken = false) => {
+  const token = useAccessToken ? getAccessToken() : getIdToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };

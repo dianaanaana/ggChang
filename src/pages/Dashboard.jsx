@@ -8,7 +8,7 @@ import LoginIcon from '@mui/icons-material/Login';
 import MenuIcon from '@mui/icons-material/Menu';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios'
-import { exchangeCodeForTokens, isAuthenticated, logout as authLogout, getAuthHeaders } from '../utils/auth'
+import { exchangeCodeForTokens, isAuthenticated, logout as authLogout, getAuthHeaders, getUserId } from '../utils/auth'
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import enUS from "date-fns/locale/en-US";
@@ -260,10 +260,14 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   };
 
   const fetchData = async () => {
-    const targetUser = userId === "me" ? "me" : userId;
+    const targetUser = userId === "me" ? getUserId() : userId;
+    if (!targetUser) {
+      console.warn('No user id available to fetch expenses');
+      return;
+    }
     try {
       const response = await axios.get(
-        'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses?userId=${targetUser}',
+        `https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses?userId=${encodeURIComponent(targetUser)}`,
         {
           headers: getAuthHeaders()
         }
