@@ -66,6 +66,7 @@ export default function NavigationBar({
               <List component="div" disablePadding>
                 {friendRequests.map((req) => {
                   const requestId = req.requestId || req.id || req.friendSubOrRequestId;
+                  const fromSub = req.fromSub;
                   const rawName =
                     req.fromUserName ||
                     req.senderEmail ||
@@ -88,7 +89,7 @@ export default function NavigationBar({
                         <Button
                           size="small"
                           variant="contained"
-                          onClick={() => onAcceptFriend(requestId)}
+                          onClick={() => onAcceptFriend(fromSub)}
                           sx={{ flex: 1 }}
                         >
                           接受

@@ -70,13 +70,13 @@ export default function Friends() {
     fetchFriendRequests();
   }, [isLoggedIn]);
 
-  const handleAccept = async (requestId) => {
-    if (!requestId) return;
+  const handleAccept = async (fromSub) => {
+    if (!fromSub) return;
 
     try {
       await axios.post(
         `${API_BASE}/friends/accept`,
-        { requestId },
+        { fromSub },
         { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
       );
 

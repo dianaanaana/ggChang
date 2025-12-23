@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import { Container, Card, Typography, Button, Box, Grid, IconButton, ImageList, ImageListItem, Dialog, DialogContent, DialogActions, DialogTitle } from '@mui/material'
+import { Container, Card, Typography, Button, Box, Grid, IconButton, ImageList, ImageListItem, Dialog, DialogContent, DialogActions, DialogTitle, Snackbar, Alert } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import AddIcon from '@mui/icons-material/Add';
@@ -201,9 +201,17 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   const [totalAmount, setTotalAmount] = useState(0) // 儲存總金額
   const [selectedRecord, setSelectedRecord] = useState(null) // 選中的紀錄 (用於顯示詳情)
   const [friendRequests, setFriendRequests] = useState([]);
+  const [requestActionStatus, setRequestActionStatus] = useState({
+    loadingId: null,
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+
   const now = new Date();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
+  
   const handleSelectSlot = (slotInfo) => {
   const date = format(slotInfo.start, "yyyy-MM-dd");
   navigate(`/add-record?date=${date}`);
@@ -317,36 +325,66 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
     }
   };
 
-  // 接受邀請：POST /friends/accept  body: { requestId }
-  const handleAccept = async (requestId) => {
-    if (!requestId) {
-      console.warn('無法接受：缺少 requestId');
-      return;
+  // 接受邀請：POST /friends/accept  body: { fromSub }
+  const handleAccept = async (fromSub) => {
+    if (!fromSub) {
+        setRequestActionStatus({
+            loadingId: null,
+            open: true,
+            message: '無法接受：缺少 fromSub',
+            severity: 'error',
+        });
+        return;
     }
+
+    setRequestActionStatus((prev) => ({ ...prev, loadingId: fromSub }));
 
     try {
       await axios.post(
         `${API_BASE}/friends/accept`,
-        { requestId },
+        { fromSub },
         { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
       );
 
       // 重新刷新邀請列表
       fetchFriendRequests();
+      
+      setRequestActionStatus({
+          loadingId: null,
+          open: true,
+          message: '已接受好友邀請',
+          severity: 'success',
+      });
     } catch (err) {
       console.error('接受交友邀請失敗:', {
         status: err.response?.status,
         data: err.response?.data,
         message: err.message,
       });
+      setRequestActionStatus({
+          loadingId: null,
+          open: true,
+          message: err.response?.data?.message || '接受交友邀請失敗',
+          severity: 'error',
+      });
+    } finally {
+        setRequestActionStatus((prev) => ({ ...prev, loadingId: null }));
     }
   };
 
   // 你的 API 樹沒有 reject，所以先不要打 API，避免永遠失敗
   const handleReject = async (requestId) => {
     console.warn('目前後端尚未提供 reject endpoint，requestId:', requestId);
-    alert('目前尚未支援「拒絕」功能（後端未提供 reject API）。');
+    // alert('目前尚未支援「拒絕」功能（後端未提供 reject API）。');
+    setRequestActionStatus({
+        loadingId: null,
+        open: true,
+        message: '目前尚未支援「拒絕」功能（後端未提供 reject API）。',
+        severity: 'info',
+    });
   };
+
+
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -679,6 +717,21 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
             </>
         )}
       </Dialog>
+
+      <Snackbar
+        open={requestActionStatus.open}
+        autoHideDuration={3000}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        onClose={() => setRequestActionStatus((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setRequestActionStatus((prev) => ({ ...prev, open: false }))}
+          severity={requestActionStatus.severity}
+          sx={{ width: '100%' }}
+        >
+          {requestActionStatus.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
