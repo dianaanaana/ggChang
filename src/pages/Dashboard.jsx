@@ -182,23 +182,19 @@ const localizer = dateFnsLocalizer({
 
 function CalendarEvent({ event }) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {event.imageUrl && (
         <Box
           component="img"
           src={event.imageUrl}
           sx={{
             width: "100%",
-            height: 40,
+            height: "100%",
             objectFit: "cover",
             borderRadius: 1,
-            mb: 0.5,
           }}
         />
       )}
-      <Typography variant="caption">
-        {event.title}
-      </Typography>
     </Box>
   );
 }
@@ -222,41 +218,34 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
 };
 
   const monthlyRecords = records.filter((r) => {
-    const date = new Date(r.createdAt);
+    const date = new Date(r.date);
     return date >= monthStart && date <= monthEnd;
   });  
 
   const monthlyExpense = monthlyRecords
     .filter((r) => r.type === "expense")
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+    .reduce((sum, r) => sum + Number(r.price), 0);
 
   const monthlyIncome = monthlyRecords
     .filter((r) => r.type === "income")
-    .reduce((sum, r) => sum + Number(r.amount), 0);
+    .reduce((sum, r) => sum + Number(r.price), 0);
 
   const calendarEvents = records.map((r) => ({
     id: r.recordId,
-    title: `$${r.amount}`,
-    start: new Date(r.createdAt),
-    end: new Date(r.createdAt),
+    title: `$${r.price}`,
+    start: new Date(r.date),
+    end: new Date(r.date),
     imageUrl: r.imageUrl,
     record: r, // 整包帶著，之後好用
   }));
   
   const eventPropGetter = (event) => {
-    // 判斷支出或收入 (假設你的 record 裡有 type 欄位)
-    const isExpense = event.record?.type === 'expense';
-    
     return {
       style: {
-        backgroundColor: isExpense ? '#fee2e2' : '#dcfce7', // 紅底 vs 綠底 (比較淡的顏色)
-        color: isExpense ? '#ef4444' : '#22c55e', // 深紅 vs 深綠文字
+        backgroundColor: 'transparent',
         border: 'none',
-        borderRadius: '6px',
-        display: 'block',
-        fontWeight: '600',
-        fontSize: '0.8rem',
-        padding: '2px 5px',
+        padding: 0,
+        overflow: 'hidden',
       },
     };
   };
@@ -274,15 +263,15 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
           headers: getAuthHeaders()
         }
       );
-      
+
       // 根據 createdAt 由新到舊排序 (Newest First)
       const sortedRecords = (response.data.items || []).sort((a, b) => {
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
-      
+
       setRecords(sortedRecords);
 
-      const sum = sortedRecords.reduce((acc, curr) => acc + Number(curr.amount), 0);
+      const sum = sortedRecords.reduce((acc, curr) => acc + Number(curr.price), 0);
       setTotalAmount(sum);
     } catch (error) {
       console.error("抓取失敗:", error);
@@ -677,7 +666,7 @@ const handleReject = async (requestId) => {
                             }}
                         >
                             <Typography variant="h6" color="text.secondary" fontWeight="bold">
-                                ${item.amount}
+                                ${item.price}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                                 {item.category}
@@ -723,7 +712,7 @@ const handleReject = async (requestId) => {
                         </Box>
                     )}
                     <Typography variant="h4" color="error" fontWeight="bold" gutterBottom>
-                        ${selectedRecord.amount}
+                        ${selectedRecord.price}
                     </Typography>
                     <Box display="flex" gap={1} mb={1}>
                         <Typography variant="body2" fontWeight="bold" sx={{ px: 1.5, py: 0.5, bgcolor: '#f3f4f6', borderRadius: 1, color: 'text.secondary' }}>

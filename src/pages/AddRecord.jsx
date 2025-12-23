@@ -12,14 +12,14 @@ import { useSearchParams } from "react-router-dom";
 
 export default function AddRecord() {
   const [searchParams] = useSearchParams();
-  const date = searchParams.get("date"); // 2025-12-22
   const navigate = useNavigate();
 
   const [type, setType] = useState('expense'); // 收入 / 支出
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
-    category: ''
+    category: '',
+    date: searchParams.get("date") || new Date().toISOString().split('T')[0]
   });
   const [loading, setLoading] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -84,10 +84,11 @@ export default function AddRecord() {
       const response = await axios.post(
         'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses',
         {
-          amount: parseFloat(formData.amount),
+          price: parseFloat(formData.amount),
           category: formData.category,
           description: formData.description,
-          s3Key: s3Key,
+          date: formData.date, // 傳送使用者選擇的日期
+          s3Key: s3Key, // 傳送 s3Key 給後端
           type: type // 新增 type 字段
         },
         { headers: getAuthHeaders() }
@@ -196,10 +197,11 @@ export default function AddRecord() {
         <TextField
           label="日期"
           type="date"
-          value={date || ""}
-          margin="normal"
+          value={formData.date}
+          onChange={handleChange('date')}
           InputLabelProps={{ shrink: true }}
           fullWidth
+          margin="normal"
           sx={{
             '& .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'black' },
@@ -252,5 +254,5 @@ export default function AddRecord() {
         </Box>
       </Paper>
     </Container>
-  );
+  )
 }

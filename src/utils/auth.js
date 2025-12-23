@@ -6,7 +6,9 @@ export const exchangeCodeForTokens = async (code) => {
     console.log('正在交換 token，code:', code);
 
     // 根據當前網址決定 redirect_uri
-    const redirectUri = 'http://localhost:5173/';
+    const redirectUri = window.location.origin.includes('localhost')
+      ? 'http://localhost:5173/'
+      : 'https://d14a9z9u68wcij.cloudfront.net/';
 
     const response = await fetch(`${API_ENDPOINT}/exchangeCode`, {
       method: 'POST',
