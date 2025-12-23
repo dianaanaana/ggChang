@@ -44,7 +44,7 @@ export default function AddFriend() {
           onChange={(e) => setFriendId(e.target.value)}
         />
         <Button variant="contained" onClick={handleAddFriend}>
-          加入
+          送出
         </Button>
       </Box>
 

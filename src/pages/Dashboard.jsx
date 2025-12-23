@@ -18,11 +18,150 @@ import { Drawer, List, ListItemButton, ListItemText } from "@mui/material";
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import Collapse from '@mui/material/Collapse';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { styled } from '@mui/material/styles';
+
+
+const StyledCalendarWrapper = styled(Box)(({ theme }) => ({
+  /* 整體字體 */
+  '& .rbc-calendar': {
+    fontFamily: theme.typography.fontFamily,
+    backgroundColor: '#fff',
+  },
+  '& .rbc-date-cell': {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /* ❌ 移除所有外框與格線 */
+  
+  '& .rbc-month-view': {
+    border: 'none',
+  },
+  '& .rbc-month-row': {
+    border: 'none',
+  },
+  '& .rbc-day-bg': {
+    border: 'none',
+  },
+  '& .rbc-day-bg + .rbc-day-bg': {
+    borderLeft: 'none',
+  },
+  '& .rbc-header': {
+    borderBottom: 'none',
+    padding: '12px 0',
+    fontWeight: 600,
+    color: theme.palette.text.secondary,
+    fontSize: '1.5rem',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  '& .rbc-toolbar-label': {
+    fontSize: '2.5rem',
+    fontWeight: 700,
+    color: '#333',
+    letterSpacing: '1px',
+  },
+
+  /* ❌ 移除非本月灰底 */
+  '& .rbc-off-range-bg': {
+    backgroundColor: 'transparent',
+    
+  },
+  '& .rbc-off-range .rbc-button-link': {
+    opacity: 0.3,
+  },
+  /* 今天：非常淡的提示 */
+  '& .rbc-today': {
+    backgroundColor: `${theme.palette.primary.light}10`,
+  },
+
+  /* ✅ 日期格：整格置中 */
+  '& .rbc-date-cell': {
+    height: '100%',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none', // 避免點到數字
+  },
+
+  /* ✅ 日期數字本身 */
+  '& .rbc-date-cell .rbc-button-link': {
+    fontSize: '1.1rem',
+    fontWeight: 500,
+    color: theme.palette.text.primary,
+  },
+
+  /* ❌ 移除事件邊框干擾 */
+  '& .rbc-event': {
+    border: 'none',
+    boxShadow: 'none',
+  },
+  '& .rbc-day-bg:hover': {
+  backgroundColor: `${theme.palette.primary.light}08`,
+  }
+  
+}));
 
 
 
+const CustomToolbar = (toolbar) => {
+  const goToBack = () => {
+    toolbar.onNavigate('PREV');
+  };
 
+  const goToNext = () => {
+    toolbar.onNavigate('NEXT');
+  };
 
+  const goToCurrent = () => {
+    toolbar.onNavigate('TODAY');
+  };
+
+  return (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: 3, 
+        px: 1 
+      }}
+    >
+      <Typography
+        fontWeight="medium"
+        sx={{
+          fontSize: '5rem',       // <- 直接在這裡改
+          color: '#333',
+          letterSpacing: '1px'
+        }}
+      >
+        {toolbar.label}
+      </Typography>
+
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <Button 
+            variant="outlined" 
+            size="small" 
+            onClick={goToCurrent}
+            sx={{ borderRadius: 2, textTransform: 'none', color: 'text.secondary', borderColor: 'divider' }}
+        >
+            Today
+        </Button>
+        <IconButton onClick={goToBack} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          <ArrowBackIosNewIcon fontSize="small" />
+        </IconButton>
+        <IconButton onClick={goToNext} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+          <ArrowForwardIosIcon fontSize="small" />
+        </IconButton>
+      </Box>
+    </Box>
+  );
+};
 
 
 const locales = {
@@ -101,7 +240,24 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
     imageUrl: r.imageUrl,
     record: r, // 整包帶著，之後好用
   }));
-
+  
+  const eventPropGetter = (event) => {
+    // 判斷支出或收入 (假設你的 record 裡有 type 欄位)
+    const isExpense = event.record?.type === 'expense';
+    
+    return {
+      style: {
+        backgroundColor: isExpense ? '#fee2e2' : '#dcfce7', // 紅底 vs 綠底 (比較淡的顏色)
+        color: isExpense ? '#ef4444' : '#22c55e', // 深紅 vs 深綠文字
+        border: 'none',
+        borderRadius: '6px',
+        display: 'block',
+        fontWeight: '600',
+        fontSize: '0.8rem',
+        padding: '2px 5px',
+      },
+    };
+  };
 
   const fetchData = async () => {
     const targetUser = userId === "me" ? "me" : userId;
@@ -228,7 +384,7 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#F9FAFB', py: 4 }}>
       {/* 簡單的頂部導覽列 */}
       <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: 'white' }}>
         <Toolbar>
@@ -245,7 +401,7 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
                 <ListItemText primary="朋友" />
               </ListItemButton>
               <ListItemButton onClick={() => navigate("/add-friend")}>
-                <ListItemText primary="朋友邀請" />
+                <ListItemText primary="新增好友" />
               </ListItemButton>
               <ListItemButton onClick={() => setOpenFriendRequests(!openFriendRequests)}>
                 <ListItemText primary="交友邀請" />
@@ -270,8 +426,8 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
               </Collapse>
             </List>
           </Drawer>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold', color: 'primary.main' }}>
-            ExpenseTracker
+          <Typography variant="h4" component="div" sx={{ flexGrow: 1, color: '#271010ff' }}>
+            記記好帳
           </Typography>
           {!isLoggedIn ? (
             <IconButton color="inherit" onClick={() => navigate('/login')}>
@@ -284,80 +440,151 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
           )}
         </Toolbar>
       </AppBar>
-    <Card sx={{ mt: 4, p: 2 }}>
-      <Typography variant="h6" fontWeight="bold" mb={2}>
-        Calender
-      </Typography>
-
-      <Box sx={{ height: 600 }}>
-        <Calendar
-          localizer={localizer}
-          events={calendarEvents}
-          startAccessor="start"
-          endAccessor="end"
-          selectable
-          onSelectSlot={handleSelectSlot}
-          views={["month"]}
-          components={{
-            event: CalendarEvent,
-          }}
-          style={{ height: "100%" }}
-        />
-      </Box>
-    </Card>
+      {/* Calender 卡片區域 */}
+      <Card 
+        sx={{ 
+          mt: 4, 
+          p: 3, 
+          borderRadius: 4, // 更圓潤
+          boxShadow: '0px 4px 20px rgba(0,0,0,0.05)', // 很淡的陰影
+          border: '1px solid rgba(0,0,0,0.05)',
+          width: '90%',          // 整體比螢幕窄
+          mx: 'auto',            // 水平置中
+        }}
+      >
+        <StyledCalendarWrapper sx={{ height: 600 }}>
+          <Calendar
+            localizer={localizer}
+            events={calendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            selectable
+            onSelectSlot={handleSelectSlot}
+            views={["month"]} // 只保留月視圖，介面更乾淨
+            components={{
+              event: CalendarEvent,
+              toolbar: CustomToolbar, // 使用我們自製的 Toolbar
+            }}
+            eventPropGetter={eventPropGetter} // 套用顏色邏輯
+            style={{ height: "100%" }}
+          />
+        </StyledCalendarWrapper>
+      </Card>
 
       <Container maxWidth="sm" sx={{ mt: 4, pb: 10 }}>
-        
-        {/* 餘額卡片：使用漸層背景 */}
+        {/* 餘額卡片：改為純白簡約風格 */}
         <Card 
           sx={{ 
-            p: 4, 
+            p: 0, 
             mb: 4, 
-            background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', // 紫色漸層
-            color: 'white' 
+            // 背景改純白
+            bgcolor: '#FFFFFF', 
+            // 文字改深色
+            color: '#111827',
+            // 加上柔和的大圓角與陰影，對齊上方日曆風格
+            borderRadius: 4, 
+            border: '1px solid #E5E7EB',
+            boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.05)',
+            overflow: 'hidden'
           }}
         >
-          <Grid container spacing={30} sx={{ mb: 0 }}>
+
+          <Box sx={{ p: 4 }}>
+          {/* 標題文字變淡灰 */}
+          <Typography variant="subtitle1" sx={{ color: '#6B7280', mb: 1 }}>
+              本月結餘
+          </Typography>
+          {/* 金額變深黑 */}
+          <Typography variant="h1" fontWeight="bold" sx={{ mb: 4, color: '#111827' }}>
+              ${monthlyIncome - monthlyExpense}
+          </Typography>
+
+          <Grid container spacing={2}>
+            {/* 支出區塊：淡紅色背景 */}
             <Grid item xs={6}>
-              <Card sx={{ p: 4, bgcolor: "#fee2e2" }}>
-                <Typography variant="subtitle2" color="error">
-                  本月支出
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="error">
-                  ${monthlyExpense}
-                </Typography>
-              </Card>
+              <Box sx={{ 
+                  bgcolor: '#FEF2F2', // 淡紅色背景
+                  p: 2, 
+                  borderRadius: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5
+              }}>
+                {/* Icon 背景改純白 */}
+                {/* <Box sx={{ 
+                  p: 1, 
+                  bgcolor: '#FFFFFF', 
+                  borderRadius: '50%', 
+                  display: 'flex', 
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
+                }}>
+                  <TrendingDownIcon color="error" />
+                </Box> */}
+                <Box>
+                  <Typography variant="h3" sx={{ color: '#EF4444', fontWeight: 600 }}>本月支出</Typography>
+                  <Typography variant="h4" sx={{ color: '#111827' }}>
+                    ${monthlyExpense}
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
 
+              {/* 收入區塊：淡綠色背景 */}
             <Grid item xs={6}>
-              <Card sx={{ p: 4, bgcolor: "#dcfce7" }}>
-                <Typography variant="subtitle2" color="success.main">
-                  本月收入
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="success.main">
-                  ${monthlyIncome}
-                </Typography>
-              </Card>
+              <Box sx={{ 
+                  bgcolor: '#F0FDF4', // 淡綠色背景
+                  p: 2, 
+                  borderRadius: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5
+              }}>
+                  {/* <Box sx={{ 
+                    p: 1, 
+                    bgcolor: '#FFFFFF', 
+                    borderRadius: '50%', 
+                    display: 'flex',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    <TrendingUpIcon color="success" />
+                  </Box> */}
+                  <Box>
+                    <Typography variant="h3" sx={{ color: '#10B981', fontWeight: 600 }}>本月收入</Typography>
+                    <Typography variant="h4" sx={{ color: '#111827' }}>
+                      ${monthlyIncome}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
             </Grid>
-          </Grid>
+          </Box>
         </Card>
 
-        {/* 新增按鈕移到這裡 */}
-        <Button
-          fullWidth
-          variant="contained"
-          size="large"
-          startIcon={<AddIcon />}
-          sx={{ 
-            mb: 4, 
-            py: 1.5, 
-            borderRadius: 50, // 膠囊狀按鈕
-            boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39)' 
-          }}
-          onClick={() => navigate('/add-record')}
-        >
-          新增一筆紀錄
-        </Button>
+        {/* 新增按鈕：改為純黑現代風 */}
+      <Button
+        fullWidth
+        // variant="contained"
+        size="large"
+        startIcon={<AddIcon />}
+        sx={{ 
+          mb: 4, 
+          py: 2, // 稍微加高一點，手感比較好
+          borderRadius: 4, // 跟上面的卡片圓角呼應
+          bgcolor: '#111827', // 純黑色背景
+          color: '#FFFFFF',
+          textTransform: 'none', // 取消全大寫，看起來比較優雅
+          fontSize: '2.5rem',
+          fontWeight: 600,
+          boxShadow: '0 4px 14px 0 rgba(0, 0, 0, 0.2)', // 黑色陰影
+          '&:hover': {
+            bgcolor: '#000000', // hover 變全黑
+            boxShadow: '0 6px 20px 0 rgba(0, 0, 0, 0.3)',
+          }
+        }}
+        onClick={() => navigate('/add-record')}
+      >
+        新增一筆紀錄
+      </Button>
 
         {/* 操作區 */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
