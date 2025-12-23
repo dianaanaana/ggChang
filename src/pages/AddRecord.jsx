@@ -8,8 +8,12 @@ import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getAuthHeaders, isAuthenticated, getIdToken } from '../utils/auth';
+import { useSearchParams } from "react-router-dom";
+
 
 export default function AddRecord() {
+  const [searchParams] = useSearchParams();
+  const date = searchParams.get("date"); // 2025-12-22
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     description: '',
@@ -180,6 +184,14 @@ export default function AddRecord() {
           margin="normal"
           value={formData.category}
           onChange={handleChange('category')}
+        />
+        
+        <TextField
+          label="日期"
+          type="date"
+          value={date || ""}
+          InputLabelProps={{ shrink: true }}
+          fullWidth
         />
 
         <Button

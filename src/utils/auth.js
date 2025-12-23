@@ -70,5 +70,5 @@ export const getAuthHeaders = () => {
   const idToken = getIdToken();
   return idToken ? {
     'Authorization': `Bearer ${idToken}`
-  } : {};
+    } : {};
 };

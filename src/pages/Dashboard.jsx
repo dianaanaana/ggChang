@@ -9,19 +9,105 @@ import MenuIcon from '@mui/icons-material/Menu';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios'
 import { exchangeCodeForTokens, isAuthenticated, logout as authLogout, getAuthHeaders } from '../utils/auth'
+import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay } from "date-fns";
+import enUS from "date-fns/locale/en-US";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { startOfMonth, endOfMonth } from "date-fns";
+import { Drawer, List, ListItemButton, ListItemText } from "@mui/material";
+import ExpandLess from '@mui/icons-material/ExpandLess';
+import ExpandMore from '@mui/icons-material/ExpandMore';
+import Collapse from '@mui/material/Collapse';
 
-export default function Dashboard() {
+
+
+
+
+
+
+const locales = {
+  "en-US": enUS,
+};
+
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
+
+
+
+function CalendarEvent({ event }) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column" }}>
+      {event.imageUrl && (
+        <Box
+          component="img"
+          src={event.imageUrl}
+          sx={{
+            width: "100%",
+            height: 40,
+            objectFit: "cover",
+            borderRadius: 1,
+            mb: 0.5,
+          }}
+        />
+      )}
+      <Typography variant="caption">
+        {event.title}
+      </Typography>
+    </Box>
+  );
+}
+
+export default function Dashboard({ userId = "me", isFriend = false }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [records, setRecords] = useState([]) // 儲存支出紀錄
   const [totalAmount, setTotalAmount] = useState(0) // 儲存總金額
   const [selectedRecord, setSelectedRecord] = useState(null) // 選中的紀錄 (用於顯示詳情)
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+  const [friendRequests, setFriendRequests] = useState([]);
+  const [openFriendRequests, setOpenFriendRequests] = useState(false);  
+  const [openMenu, setOpenMenu] = useState(false);
+  const handleSelectSlot = (slotInfo) => {
+  const date = format(slotInfo.start, "yyyy-MM-dd");
+  navigate(`/add-record?date=${date}`);
+};
+
+  const monthlyRecords = records.filter((r) => {
+    const date = new Date(r.createdAt);
+    return date >= monthStart && date <= monthEnd;
+  });  
+
+  const monthlyExpense = monthlyRecords
+    .filter((r) => r.type === "expense")
+    .reduce((sum, r) => sum + Number(r.amount), 0);
+
+  const monthlyIncome = monthlyRecords
+    .filter((r) => r.type === "income")
+    .reduce((sum, r) => sum + Number(r.amount), 0);
+
+  const calendarEvents = records.map((r) => ({
+    id: r.recordId,
+    title: `$${r.amount}`,
+    start: new Date(r.createdAt),
+    end: new Date(r.createdAt),
+    imageUrl: r.imageUrl,
+    record: r, // 整包帶著，之後好用
+  }));
+
 
   const fetchData = async () => {
+    const targetUser = userId === "me" ? "me" : userId;
     try {
       const response = await axios.get(
-        'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses',
+        'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod/expenses?userId=${targetUser}',
         {
           headers: getAuthHeaders()
         }
@@ -45,6 +131,45 @@ export default function Dashboard() {
       }
     }
   };
+
+  
+  const fetchFriendRequests = async () => {
+    try {
+      const res = await axios.get('https://your-api-endpoint/friend-requests', {
+        headers: getAuthHeaders()
+      });
+      setFriendRequests(res.data.items);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAccept = async (requestId) => {
+    try {
+      await axios.post(`https://your-api-endpoint/friend-requests/${requestId}/accept`, {}, {
+        headers: getAuthHeaders()
+      });
+      fetchFriendRequests(); // 更新列表
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleReject = async (requestId) => {
+    try {
+      await axios.post(`https://your-api-endpoint/friend-requests/${requestId}/reject`, {}, {
+        headers: getAuthHeaders()
+      });
+      fetchFriendRequests(); // 更新列表
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchFriendRequests();
+  }, []);
+
 
   useEffect(() => {
     // 處理 Cognito 回調
@@ -107,9 +232,44 @@ export default function Dashboard() {
       {/* 簡單的頂部導覽列 */}
       <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: 'white' }}>
         <Toolbar>
-          <IconButton edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}>
+          <IconButton onClick={() => setOpenMenu(true)} edge="start" color="inherit" aria-label="menu" sx={{ mr: 2 }}>
             <MenuIcon />
           </IconButton>
+          <Drawer open={openMenu} onClose={() => setOpenMenu(false)}>
+            <List sx={{ width: 250 }}>
+              <ListItemButton onClick={() => navigate("/dashboard")}>
+                <ListItemText primary="我的帳本" />
+              </ListItemButton>
+
+              <ListItemButton onClick={() => navigate("/friends")}>
+                <ListItemText primary="朋友" />
+              </ListItemButton>
+              <ListItemButton onClick={() => navigate("/add-friend")}>
+                <ListItemText primary="朋友邀請" />
+              </ListItemButton>
+              <ListItemButton onClick={() => setOpenFriendRequests(!openFriendRequests)}>
+                <ListItemText primary="交友邀請" />
+                {openFriendRequests ? <ExpandLess /> : <ExpandMore />}
+              </ListItemButton>
+
+              <Collapse in={openFriendRequests} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding>
+                  {friendRequests.map((req) => (
+                    <ListItemButton key={req.id} sx={{ pl: 4 }}>
+                      <ListItemText primary={req.fromUserName} />
+                      <Button size="small" variant="contained" onClick={() => handleAccept(req.id)}>接受</Button>
+                      <Button size="small" variant="outlined" color="error" onClick={() => handleReject(req.id)}>拒絕</Button>
+                    </ListItemButton>
+                  ))}
+                  {friendRequests.length === 0 && (
+                    <ListItemButton sx={{ pl: 4 }}>
+                      <ListItemText primary="沒有新的邀請" />
+                    </ListItemButton>
+                  )}
+                </List>
+              </Collapse>
+            </List>
+          </Drawer>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 'bold', color: 'primary.main' }}>
             ExpenseTracker
           </Typography>
@@ -124,6 +284,27 @@ export default function Dashboard() {
           )}
         </Toolbar>
       </AppBar>
+    <Card sx={{ mt: 4, p: 2 }}>
+      <Typography variant="h6" fontWeight="bold" mb={2}>
+        Calender
+      </Typography>
+
+      <Box sx={{ height: 600 }}>
+        <Calendar
+          localizer={localizer}
+          events={calendarEvents}
+          startAccessor="start"
+          endAccessor="end"
+          selectable
+          onSelectSlot={handleSelectSlot}
+          views={["month"]}
+          components={{
+            event: CalendarEvent,
+          }}
+          style={{ height: "100%" }}
+        />
+      </Box>
+    </Card>
 
       <Container maxWidth="sm" sx={{ mt: 4, pb: 10 }}>
         
@@ -136,10 +317,29 @@ export default function Dashboard() {
             color: 'white' 
           }}
         >
-          <Typography variant="subtitle1" sx={{ opacity: 0.8 }}>總支出</Typography>
-          <Typography variant="h2" component="div" fontWeight="bold">
-            ${totalAmount}
-          </Typography>
+          <Grid container spacing={30} sx={{ mb: 0 }}>
+            <Grid item xs={6}>
+              <Card sx={{ p: 4, bgcolor: "#fee2e2" }}>
+                <Typography variant="subtitle2" color="error">
+                  本月支出
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="error">
+                  ${monthlyExpense}
+                </Typography>
+              </Card>
+            </Grid>
+
+            <Grid item xs={6}>
+              <Card sx={{ p: 4, bgcolor: "#dcfce7" }}>
+                <Typography variant="subtitle2" color="success.main">
+                  本月收入
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="success.main">
+                  ${monthlyIncome}
+                </Typography>
+              </Card>
+            </Grid>
+          </Grid>
         </Card>
 
         {/* 新增按鈕移到這裡 */}
@@ -213,7 +413,7 @@ export default function Dashboard() {
             ))}
         </ImageList>
       </Container>
-
+            
       {/* 詳情對話框 */}
       <Dialog 
         open={!!selectedRecord} 
