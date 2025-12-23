@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import { Container, Card, Typography, Button, Box, Grid, IconButton, AppBar, Toolbar, ImageList, ImageListItem, Dialog, DialogContent, DialogActions, DialogTitle } from '@mui/material'
+import { Container, Card, Typography, Button, Box, Grid, IconButton, AppBar, Toolbar, ImageList, ImageListItem, Dialog, DialogContent, DialogActions, DialogTitle, Snackbar, Alert } from '@mui/material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import AddIcon from '@mui/icons-material/Add';
@@ -210,6 +210,12 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
   const [friendRequests, setFriendRequests] = useState([]);
+  const [requestActionStatus, setRequestActionStatus] = useState({
+    loadingId: null,
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   const [openFriendRequests, setOpenFriendRequests] = useState(false);  
   const [openMenu, setOpenMenu] = useState(false);
   const handleSelectSlot = (slotInfo) => {
@@ -284,14 +290,13 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   };
 
   
-  // 取得交友邀請列表：GET /friends/request
+// 取得交友邀請列表：GET /friends/request
 const fetchFriendRequests = async () => {
   try {
     const res = await axios.get(`${API_BASE}/friends/request`, {
       headers: getAuthHeaders(),
     });
 
-    // 後端可能回 { items: [...] } 或直接回 [...]
     const items = Array.isArray(res.data) ? res.data : (res.data?.items || []);
     setFriendRequests(items);
   } catch (err) {
@@ -309,36 +314,70 @@ const fetchFriendRequests = async () => {
   }
 };
 
-// 接受邀請：POST /friends/accept  body: { requestId }
-const handleAccept = async (requestId) => {
-  if (!requestId) {
-    console.warn('無法接受：缺少 requestId');
+// 接受邀請：POST /friends/accept，後端需要 { fromSub }
+const handleAccept = async (fromSub) => {
+  if (!fromSub) {
+    setRequestActionStatus({
+      loadingId: null,
+      open: true,
+      message: 'Missing fromSub',
+      severity: 'error',
+    });
     return;
   }
+
+  setRequestActionStatus((prev) => ({ ...prev, loadingId: fromSub }));
 
   try {
     await axios.post(
       `${API_BASE}/friends/accept`,
-      { requestId },
+      { fromSub },
       { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
     );
 
-    // 重新刷新邀請列表
-    fetchFriendRequests();
+    await fetchFriendRequests();
+
+    setRequestActionStatus({
+      loadingId: null,
+      open: true,
+      message: 'Friend request accepted.',
+      severity: 'success',
+    });
   } catch (err) {
     console.error('接受交友邀請失敗:', {
       status: err.response?.status,
       data: err.response?.data,
       message: err.message,
     });
+
+    const message =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      'Failed to accept friend request.';
+
+    setRequestActionStatus({
+      loadingId: null,
+      open: true,
+      message,
+      severity: 'error',
+    });
+  } finally {
+    setRequestActionStatus((prev) => ({ ...prev, loadingId: null }));
   }
 };
 
-// 你的 API 樹沒有 reject，所以先不要打 API，避免永遠失敗
+// 目前後端尚未提供 reject endpoint：先做提示
 const handleReject = async (requestId) => {
   console.warn('目前後端尚未提供 reject endpoint，requestId:', requestId);
-  alert('目前尚未支援「拒絕」功能（後端未提供 reject API）。');
+  setRequestActionStatus({
+    loadingId: null,
+    open: true,
+    message: 'Reject not supported yet (no backend API).',
+    severity: 'error',
+  });
 };
+
+
 
 
   useEffect(() => {
@@ -433,6 +472,7 @@ const handleReject = async (requestId) => {
                 <List component="div" disablePadding>
                   {friendRequests.map((req) => {
                     const requestId = req.requestId || req.id || req.friendSubOrRequestId;
+                    const fromSub = req.fromSub;
                     const displayName =
                           req.fromUserName ||
                           req.senderEmail ||
@@ -444,9 +484,15 @@ const handleReject = async (requestId) => {
                     return (
                       <ListItemButton key={requestId || displayName} sx={{ pl: 4, gap: 1 }}>
                         <ListItemText primary={displayName} />
-                        <Button size="small" variant="contained" onClick={() => handleAccept(requestId)}>
-                            接受
-                          </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          onClick={() => handleAccept(fromSub)}
+
+                        >
+                          接受
+                        </Button>
+
                           <Button size="small" variant="outlined" color="error" onClick={() => handleReject(requestId)}>
                             拒絕
                           </Button>
@@ -735,6 +781,21 @@ const handleReject = async (requestId) => {
             </>
         )}
       </Dialog>
+
+      <Snackbar
+        open={requestActionStatus.open}
+        autoHideDuration={3000}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        onClose={() => setRequestActionStatus((prev) => ({ ...prev, open: false }))}
+      >
+        <Alert
+          onClose={() => setRequestActionStatus((prev) => ({ ...prev, open: false }))}
+          severity={requestActionStatus.severity}
+          sx={{ width: '100%' }}
+        >
+          {requestActionStatus.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
