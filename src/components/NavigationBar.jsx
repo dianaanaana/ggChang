@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -17,53 +17,17 @@ import LoginIcon from '@mui/icons-material/Login';
 import LogoutIcon from '@mui/icons-material/Logout';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
-import axios from 'axios';
-import { getAuthHeaders } from '../utils/auth';
 
-export default function NavigationBar({ isLoggedIn = false, onLogout = () => {} }) {
+export default function NavigationBar({
+  isLoggedIn = false,
+  onLogout = () => {},
+  friendRequests = [],
+  onAcceptFriend = () => {},
+  onRejectFriend = () => {}
+}) {
   const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState(false);
   const [openFriendRequests, setOpenFriendRequests] = useState(false);
-  const [friendRequests, setFriendRequests] = useState([]);
-
-  const fetchFriendRequests = async () => {
-    try {
-      const res = await axios.get('https://your-api-endpoint/friend-requests', {
-        headers: getAuthHeaders()
-      });
-      setFriendRequests(res.data.items);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleAccept = async (requestId) => {
-    try {
-      await axios.post(`https://your-api-endpoint/friend-requests/${requestId}/accept`, {}, {
-        headers: getAuthHeaders()
-      });
-      fetchFriendRequests();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleReject = async (requestId) => {
-    try {
-      await axios.post(`https://your-api-endpoint/friend-requests/${requestId}/reject`, {}, {
-        headers: getAuthHeaders()
-      });
-      fetchFriendRequests();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchFriendRequests();
-    }
-  }, [isLoggedIn]);
 
   return (
     <AppBar position="static" color="transparent" elevation={0} sx={{ bgcolor: 'white' }}>
@@ -99,29 +63,40 @@ export default function NavigationBar({ isLoggedIn = false, onLogout = () => {} 
 
             <Collapse in={openFriendRequests} timeout="auto" unmountOnExit>
               <List component="div" disablePadding>
-                {friendRequests.map((req) => (
-                  <ListItemButton key={req.id} sx={{ pl: 4 }}>
-                    <ListItemText primary={req.fromUserName} />
-                    <Button
-                      size="small"
-                      variant="contained"
-                      onClick={() => handleAccept(req.id)}
-                    >
-                      接受
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      color="error"
-                      onClick={() => handleReject(req.id)}
-                    >
-                      拒絕
-                    </Button>
-                  </ListItemButton>
-                ))}
+                {friendRequests.map((req) => {
+                  const requestId = req.requestId || req.id || req.friendSubOrRequestId;
+                  const displayName =
+                    req.fromUserName ||
+                    req.senderEmail ||
+                    req.fromEmail ||
+                    req.fromSub ||
+                    requestId ||
+                    '未知用戶';
+
+                  return (
+                    <ListItemButton key={requestId || displayName} sx={{ pl: 4, gap: 1 }}>
+                      <ListItemText primary={displayName} />
+                      <Button
+                        size="small"
+                        variant="contained"
+                        onClick={() => onAcceptFriend(requestId)}
+                      >
+                        接受
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        onClick={() => onRejectFriend(requestId)}
+                      >
+                        拒絕
+                      </Button>
+                    </ListItemButton>
+                  );
+                })}
                 {friendRequests.length === 0 && (
                   <ListItemButton sx={{ pl: 4 }}>
-                    <ListItemText primary="沒有新的邀請" />
+                    <ListItemText primary="沒有邀請" />
                   </ListItemButton>
                 )}
               </List>

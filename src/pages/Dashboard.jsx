@@ -6,6 +6,8 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios'
 import { exchangeCodeForTokens, isAuthenticated, logout as authLogout, getAuthHeaders, getUserId } from '../utils/auth'
+
+const API_BASE = 'https://ttxklr1893.execute-api.ap-southeast-1.amazonaws.com/prod';
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import enUS from "date-fns/locale/en-US";
@@ -198,6 +200,7 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   const [records, setRecords] = useState([]) // 儲存支出紀錄
   const [totalAmount, setTotalAmount] = useState(0) // 儲存總金額
   const [selectedRecord, setSelectedRecord] = useState(null) // 選中的紀錄 (用於顯示詳情)
+  const [friendRequests, setFriendRequests] = useState([]);
   const now = new Date();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
@@ -272,6 +275,67 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
     }
   };
 
+  // 取得交友邀請列表：GET /friends/request
+  const fetchFriendRequests = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/friends/request`, {
+        headers: getAuthHeaders(),
+      });
+
+      // 後端可能回 { items: [...] } 或直接回 [...]
+      const items = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+      setFriendRequests(items);
+    } catch (err) {
+      console.error('取得交友邀請失敗:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+
+      if (err.response?.status === 401) {
+        authLogout();
+        setIsLoggedIn(false);
+        navigate('/login');
+      }
+    }
+  };
+
+  // 接受邀請：POST /friends/accept  body: { requestId }
+  const handleAccept = async (requestId) => {
+    if (!requestId) {
+      console.warn('無法接受：缺少 requestId');
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${API_BASE}/friends/accept`,
+        { requestId },
+        { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
+      );
+
+      // 重新刷新邀請列表
+      fetchFriendRequests();
+    } catch (err) {
+      console.error('接受交友邀請失敗:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message,
+      });
+    }
+  };
+
+  // 你的 API 樹沒有 reject，所以先不要打 API，避免永遠失敗
+  const handleReject = async (requestId) => {
+    console.warn('目前後端尚未提供 reject endpoint，requestId:', requestId);
+    alert('目前尚未支援「拒絕」功能（後端未提供 reject API）。');
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetchFriendRequests();
+    }
+  }, [isLoggedIn]);
 
 
   useEffect(() => {
@@ -333,7 +397,13 @@ export default function Dashboard({ userId = "me", isFriend = false }) {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#F9FAFB', py: 4 }}>
       {/* 導航列 */}
-      <NavigationBar isLoggedIn={isLoggedIn} onLogout={handleLogout} />
+      <NavigationBar
+        isLoggedIn={isLoggedIn}
+        onLogout={handleLogout}
+        friendRequests={friendRequests}
+        onAcceptFriend={handleAccept}
+        onRejectFriend={handleReject}
+      />
       {/* Calender 卡片區域 */}
       <Card 
         sx={{ 
